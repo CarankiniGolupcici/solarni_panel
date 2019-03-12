@@ -5,6 +5,7 @@ const int maxX = stepsPerRevolution;
 const int maxY = stepsPerRevolution/4;
 const int stepAmount = 10;
 const int errorAmount = 10;
+const int fullRotationTreshold = 10;
 int currentY = 0;
 int currentX = 0;
 //TODO polish out values
@@ -29,38 +30,59 @@ void loop() {
   // put your main code here, to run repeatedly:
   if(Serial.available()){
     incomingByte = Serial.read();
-    //TODO
-  }
-  
-  int LR1V = analogRead(LR1);
-  int LR2V = analogRead(LR2);
-  int LR3V = analogRead(LR3);
-  int LR4V = analogRead(LR4);
-  int Ymove = getYMove(LR1V, LR2V, LR3V, LR4V);
-  int Xmove = getXMove(LR1V, LR2V, LR3V, LR4V);
-  
-  if(Ymove != 0){
-    int stepValue = Ymove * stepAmount;
-  
-    if(currentY + stepValue > maxY){
-      stepValue = maxY-currentY;
-      currentY = maxY;
-      yStepper.step(stepValue);
-    }else if(currentY + stepValue < -maxY){
-      stepValue = -maxY - currentY;
-      currentY = -maxY;
-      yStepper.step(stepValue);
-    }else{
-      currentY =+ stepValue;
-      yStepper.step(stepValue);
+    if(incomingByte == 97){//a
+      runningStepper = true;
+    }else if(incomingByte == 98){//b
+      runningStepper = false;
+    }else if(incomingByte == 99){//c
+      xStepper.step(-currentX);
+      yStepper.step(-currentY);
+      currentX = 0;
+      currentY = 0;
+    }else if(incomingByte == 100){//d
+      xStepper.step(stepAmount);
+    }else if(incomingByte == 101){//e
+      xStepper.step(-stepAmount);
+    }else if(incomingByte == 102){//f
+      yStepper.step(stepAmount);
+    }else if(incomingByte == 103){//g
+      yStepper.step(stepAmount);
     }
   }
-  
-  if(Xmove != 0){
-    xStepper.step(Xmove * stepAmount);
-  }
 
-  delay(500);
+  if(runningStepper){
+    int LR1V = analogRead(LR1);
+    int LR2V = analogRead(LR2);
+    int LR3V = analogRead(LR3);
+    int LR4V = analogRead(LR4);
+    int Ymove = getYMove(LR1V, LR2V, LR3V, LR4V);
+    int Xmove = getXMove(LR1V, LR2V, LR3V, LR4V);
+  
+  
+    if(Ymove != 0){
+      int stepValue = Ymove * stepAmount;
+    
+      if(currentY + stepValue > maxY){
+        stepValue = maxY-currentY;
+        currentY = maxY;
+        yStepper.step(stepValue);
+      }else if(currentY + stepValue < -maxY){
+        stepValue = -maxY - currentY;
+        currentY = -maxY;
+        yStepper.step(stepValue);
+      }else{
+        currentY =+ stepValue;
+        yStepper.step(stepValue);
+      }
+    }
+    
+    if(Xmove != 0){
+      //TODO
+      //xStepper.step(Xmove * stepAmount);
+    }
+  
+    delay(500);
+  }
 }
 
 int getYMove(int LR1V, int LR2V, int LR3V, int LR4V){
