@@ -1,5 +1,5 @@
 #include <Stepper.h>
-const int stepsPerRevolution = 200;
+const int stepsPerRevolution = 4096;
 
 const int maxX = stepsPerRevolution;
 const int maxY = stepsPerRevolution/4;
@@ -12,8 +12,18 @@ int currentX = 0;
 
 boolean runningStepper = false;
 int incomingByte = 0;
-Stepper xStepper(stepsPerRevolution, 2,3, 4, 5);
-Stepper yStepper(stepsPerRevolution, 6, 7, 8, 9);
+
+//Servo1 Y
+const int S11 = 2;
+const int S12 = 3;
+const int S13 = 4;
+const int S14 = 5;
+//Servo2 X
+const int S21 = 6;
+const int S22 = 7;
+const int S23 = 8;
+const int S24 = 9;
+
 const int LR1 = A0;//TL
 const int LR2 = A1;//TR
 const int LR3 = A2;//BL
@@ -21,32 +31,45 @@ const int LR4 = A3;//BR
 
 void setup() {
   // put your setup code here, to run once:
-  xStepper.setSpeed(60);
-  yStepper.setSpeed(60);
   Serial.begin(9600);
+  Serial.println("Starting");
+  pinMode(S11, OUTPUT);
+  pinMode(S12, OUTPUT);
+  pinMode(S13, OUTPUT);
+  pinMode(S14, OUTPUT);
+
+  pinMode(S21, OUTPUT);
+  pinMode(S22, OUTPUT);
+  pinMode(S23, OUTPUT);
+  pinMode(S24, OUTPUT);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(Serial.available()){
+  if(Serial.available() > 0){
     incomingByte = Serial.read();
     if(incomingByte == 97){//a
+      Serial.println("Starting");
       runningStepper = true;
     }else if(incomingByte == 98){//b
+      Serial.println("Stopping");
       runningStepper = false;
     }else if(incomingByte == 99){//c
-      xStepper.step(-currentX);
-      yStepper.step(-currentY);
+      Serial.println("Resetting");
+      stepX(-currentX);
+      stepY(-currentY);
       currentX = 0;
       currentY = 0;
     }else if(incomingByte == 100){//d
-      xStepper.step(stepAmount);
+      stepX(stepAmount);
     }else if(incomingByte == 101){//e
-      xStepper.step(-stepAmount);
+      stepX(-stepAmount);
     }else if(incomingByte == 102){//f
-      yStepper.step(stepAmount);
+      stepY(4096);
+      Serial.println("ccw");
     }else if(incomingByte == 103){//g
-      yStepper.step(stepAmount);
+      stepY(-4096);
+      Serial.println("cw");
     }
   }
 
@@ -56,8 +79,8 @@ void loop() {
     int LR3V = analogRead(LR3);
     int LR4V = analogRead(LR4);
     int Ymove = getYMove(LR1V, LR2V, LR3V, LR4V);
-    int Xmove = getXMove(LR1V, LR2V, LR3V, LR4V);
-  
+    int Xdiff = getXMove(LR1V, LR2V, LR3V, LR4V);
+    int Xmove = Xdiff/abs(Xdiff);
   
     if(Ymove != 0){
       int stepValue = Ymove * stepAmount;
@@ -65,20 +88,48 @@ void loop() {
       if(currentY + stepValue > maxY){
         stepValue = maxY-currentY;
         currentY = maxY;
-        yStepper.step(stepValue);
-      }else if(currentY + stepValue < -maxY){
-        stepValue = -maxY - currentY;
-        currentY = -maxY;
-        yStepper.step(stepValue);
+        stepY(stepValue);
+      }else if(currentY + stepValue < 0){
+        stepValue = -currentY;
+        currentY = 0;
+        stepY(stepValue);
       }else{
         currentY =+ stepValue;
-        yStepper.step(stepValue);
+        stepY(stepValue);
       }
     }
     
     if(Xmove != 0){
-      //TODO
-      //xStepper.step(Xmove * stepAmount);
+      //TODO also add max amount and rotate back using treshold value
+      
+      int stepValue = Xmove * stepAmount;
+      if(currentX + stepValue > maxX){
+        //TODO check if over threshold for rotation
+        if(Xdiff > fullRotationTreshold){
+          stepValue=-currentX;
+          currentX=0;
+          stepX(stepValue);
+        }else{
+          stepValue=maxX-currentX;
+          currentX=maxX;
+          stepX(stepValue);
+        }
+        
+      }else if(currentX + stepValue < -maxX){
+        //TODO check for threshold
+        if(Xdiff < fullRotationTreshold){
+          stepValue=-currentX;
+          currentX=0;
+          stepX(stepValue);
+        }else{
+          stepValue=-maxX-currentX;
+          currentX=-maxX;
+          stepX(stepValue);
+        }
+      }else{
+        currentX =+ stepValue;
+        stepX(stepValue);
+      }
     }
   
     delay(500);
@@ -105,7 +156,7 @@ int getXMove(int LR1V, int LR2V, int LR3V, int LR4V){
   Serial.print("X diff: ");
   Serial.println(diffAvg);
   if(abs(diffAvg)>errorAmount){
-    return diffAvg/abs(diffAvg);
+    return diffAvg;
   }else{
     return 0;
   }
