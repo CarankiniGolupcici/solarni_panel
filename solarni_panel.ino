@@ -3,9 +3,9 @@ const int stepsPerRevolution = 4096;
 
 const int maxX = stepsPerRevolution;
 const int maxY = stepsPerRevolution/4;
-const int stepAmount = 10;
-const int errorAmount = 10;
-const int fullRotationTreshold = 10;
+const int stepAmount = 20;
+const int errorAmount = 30;
+const int fullRotationTreshold = 50;
 int currentY = 0;
 int currentX = 0;
 //TODO polish out values
@@ -14,15 +14,15 @@ boolean runningStepper = false;
 int incomingByte = 0;
 
 //Servo1 Y
-const int S11 = 2;
-const int S12 = 3;
-const int S13 = 4;
-const int S14 = 5;
+const int S11 = 6;
+const int S12 = 7;
+const int S13 = 8;
+const int S14 = 9;
 //Servo2 X
-const int S21 = 6;
-const int S22 = 7;
-const int S23 = 8;
-const int S24 = 9;
+const int S21 = 2;
+const int S22 = 3;
+const int S23 = 4;
+const int S24 = 5;
 
 const int LR1 = A0;//TL
 const int LR2 = A1;//TR
@@ -51,9 +51,11 @@ void loop() {
     if(incomingByte == 97){//a
       Serial.println("Starting");
       runningStepper = true;
+      stopMotors();
     }else if(incomingByte == 98){//b
       Serial.println("Stopping");
       runningStepper = false;
+      stopMotors();
     }else if(incomingByte == 99){//c
       Serial.println("Resetting");
       stepX(-currentX);
@@ -65,10 +67,10 @@ void loop() {
     }else if(incomingByte == 101){//e
       stepX(-stepAmount);
     }else if(incomingByte == 102){//f
-      stepY(4096);
+      stepY(stepAmount);
       Serial.println("ccw");
     }else if(incomingByte == 103){//g
-      stepY(-4096);
+      stepY(-stepAmount);
       Serial.println("cw");
     }
   }
@@ -81,58 +83,60 @@ void loop() {
     int Ymove = getYMove(LR1V, LR2V, LR3V, LR4V);
     int Xdiff = getXMove(LR1V, LR2V, LR3V, LR4V);
     int Xmove = Xdiff/abs(Xdiff);
+
+
   
     if(Ymove != 0){
       int stepValue = Ymove * stepAmount;
     
-      if(currentY + stepValue > maxY){
-        stepValue = maxY-currentY;
-        currentY = maxY;
-        stepY(stepValue);
-      }else if(currentY + stepValue < 0){
+      if(currentY + stepValue > 0){
         stepValue = -currentY;
-        currentY = 0;
-        stepY(stepValue);
-      }else{
-        currentY =+ stepValue;
-        stepY(stepValue);
+      }else if(currentY + stepValue < -maxY){
+        stepValue = -maxY-currentY;
       }
+      currentY += stepValue;
+        stepY(stepValue);
+        Serial.print("Current Y: ");
+        Serial.println(currentY);
+        Serial.print("StepY: ");
+        Serial.println(stepValue);
     }
     
     if(Xmove != 0){
       //TODO also add max amount and rotate back using treshold value
-      
-      int stepValue = Xmove * stepAmount;
+      //TODO if is too much
+      int stepValue = 0;
+      if(Xdiff != 0){
+        stepValue = Xmove * stepAmount;
+      }else{
+        stepValue = 0;
+      }
+      //int stepValue = Xdiff != 0 ? Xmove * stepAmount : 0;
       if(currentX + stepValue > maxX){
         //TODO check if over threshold for rotation
         if(Xdiff > fullRotationTreshold){
           stepValue=-currentX;
-          currentX=0;
-          stepX(stepValue);
+          
         }else{
           stepValue=maxX-currentX;
-          currentX=maxX;
-          stepX(stepValue);
         }
         
       }else if(currentX + stepValue < -maxX){
         //TODO check for threshold
         if(Xdiff < fullRotationTreshold){
-          stepValue=-currentX;
-          currentX=0;
-          stepX(stepValue);
+          stepValue=-currentX;          
         }else{
           stepValue=-maxX-currentX;
-          currentX=-maxX;
-          stepX(stepValue);
         }
-      }else{
-        currentX =+ stepValue;
-        stepX(stepValue);
       }
+        currentX += stepValue;
+        //Serial.print("X move: ");
+        //Serial.println(stepValue);
+        stepX(stepValue);
+      
     }
   
-    delay(500);
+    delay(20);
   }
 }
 
@@ -140,8 +144,8 @@ int getYMove(int LR1V, int LR2V, int LR3V, int LR4V){
   int topAvg = (LR1V + LR2V) / 2;
   int botAvg = (LR3V + LR4V) / 2;
   int diffAvg = topAvg - botAvg;
-  Serial.print("Y diff: ");
-  Serial.println(diffAvg);
+  //Serial.print("Y diff: ");
+  //Serial.println(diffAvg);
   if(abs(diffAvg)>errorAmount){
     return diffAvg/abs(diffAvg);
   }else{

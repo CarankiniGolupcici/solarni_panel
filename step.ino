@@ -60,8 +60,9 @@ switch(StepsY){
    break; 
 }
 SetDirectionY(Direction);
-delay(1);
+delay(10);
 }
+stopMotors();
 } 
 void SetDirectionY(boolean Direction){
 if(Direction==1){ StepsY++;}
@@ -137,6 +138,7 @@ switch(StepsX){
 SetDirectionX(Direction);
 delay(1);
 }
+stopMotors();
 } 
 void SetDirectionX(boolean Direction){
 if(Direction==1){ StepsX++;}
